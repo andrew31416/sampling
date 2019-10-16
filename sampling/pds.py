@@ -111,8 +111,6 @@ class PoissonDiskSampling(sampler):
  
         # mingling index group size
         self.K = K
-       
-        self._init_mingling_sampling_distribution()
  
         # threshold exclusion distance
         self.r = np.std(X)*r0
@@ -177,7 +175,7 @@ class PoissonDiskSampling(sampler):
         if not isinstance(pis,(np.ndarray,list)): raise Exception(self.set_annealing_schedule.__doc__)
         elif not len(np.shape(pis))==2: raise Exception(self.set_annealing_schedule.__doc__)
         elif not np.shape(pis)[1]==self.K: raise Exception(self.set_annealing_schedule.__doc__)
-        elif self.method!="anneal": raise Exception(self.set_annealing_schedule.__doc__) 
+        #elif self.method!="anneal": raise Exception(self.set_annealing_schedule.__doc__) 
 
         # [Niter][self.K] array of categorical distribution coefficients
         self.pis = pis
@@ -233,7 +231,7 @@ class PoissonDiskSampling(sampler):
         # list indices of selected points
         self.selected_points = []
         
-        if self.method == "anneal":
+        if self.method in ["dense","anneal"]:
             self._update_categorical_sampling_distribution()
         
         while len(self.selected_points)<N:
