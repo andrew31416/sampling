@@ -94,6 +94,7 @@ class PoissonDiskSampling(sampler):
     ::
         
         from sampling.pds import PoissonDiskSampling
+        import numpy as np
 
         # random samples in a 2-d space
         X = np.random.multivariate_normal([0,0],np.eye(2),size=50)
@@ -166,10 +167,10 @@ class PoissonDiskSampling(sampler):
             sampler = PoissonDiskSampling(X,y,method="anneal",K=K)
             
             # coefficients are normalized per iteration so no need to do this here
-            coeffs = [(K-kk)*np.exp(-iter*(K-kk)/1000) for kk in range(K)] for iter in range(2000)]
+            coeffs = [[(K-kk)*np.exp(-iter*(K-kk)/1000) for kk in range(K)] for iter in range(2000)]
 
             # set schedule for sampling mingling indices
-            sampler.set_annealing_schedule(coefss)
+            sampler.set_annealing_schedule(coeffs)
     
         """
         if not isinstance(pis,(np.ndarray,list)): raise Exception(self.set_annealing_schedule.__doc__)
@@ -210,7 +211,7 @@ class PoissonDiskSampling(sampler):
             import matplotlib.pyplot as plt
 
             # sample from bimodal 1-d distribution
-            X = np.hstack((np.random.normal(-1,1,50),np.random.normal(1,1,50)))
+            X = np.reshape(np.hstack((np.random.normal(-1,1,50),np.random.normal(1,1,50))),(-1,1))
 
             # partition about x=0
             y = [1 if _x>0 else 0 for _x in X]
@@ -218,10 +219,10 @@ class PoissonDiskSampling(sampler):
             sampler = PoissonDiskSampling(X,y,method="dense")
 
             # draw samples disproportionately close to the boundary
-            samples = np.asarray([sampler.sample(5) for ss in range(20)])
+            samples = np.asarray([sampler.sample(5)[0] for ss in range(5)])
 
             # compare distributions
-            _ = [plt.hist(_z,label=["data","samples"][ii]) for ii,_z in enumerate([y,samples.flatten()])]
+            _ = [plt.hist(_z,label=["data","samples"][ii],normed=True) for ii,_z in enumerate([X,samples.flatten()])]
 
             plt.legend()
             plt.show()
@@ -352,7 +353,12 @@ class PoissonDiskSampling(sampler):
             res = np.random.choice(np.arange(self.X.shape[0]),1)[0]
         elif self.method in ["dense","anneal"]:
             # bias sampling by mingling value using coefficients of a sampling categorical distribution
-            res = np.random.choice(self.get_mingling_indices[np.where(np.random.multinomial(1,self.pi))[0][0]],1)[0]
+            try:
+                res = np.random.choice(self.get_mingling_indices[\
+                        np.where(np.random.multinomial(1,self.pi))[0][0]],1)[0]
+            except ValueError:
+                # not enough data left to draw from specific mingling indices
+                res = np.random.choice(np.arange(self.X.shape[0]),1)[0]
         else:
             raise NotImplementedError
         
