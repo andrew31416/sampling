@@ -1,0 +1,484 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>sampling.pds &#8212; Mini-batch diversification  documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for sampling.pds</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">pds.py</span>
+<span class="sd">============================================================================</span>
+<span class="sd">Routines to perform sample-diversification for mini-batch stochastic gradient</span>
+<span class="sd">descent/ascent.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">sklearn.gaussian_process.kernels</span> <span class="k">import</span> <span class="n">RBF</span>
+<span class="kn">from</span> <span class="nn">.sampler</span> <span class="k">import</span> <span class="n">sampler</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+
+
+
+<div class="viewcode-block" id="PoissonDiskSampling"><a class="viewcode-back" href="../../index.html#sampling.pds.PoissonDiskSampling">[docs]</a><span class="k">class</span> <span class="nc">PoissonDiskSampling</span><span class="p">(</span><span class="n">sampler</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Poisson disk sampling (PDS) is a data diversifcation method for stochastic </span>
+<span class="sd">    gradient descent for labelled categorical data.</span>
+<span class="sd">    </span>
+<span class="sd">    Point processes are actively sampled by using the categorical label to bias</span>
+<span class="sd">    sampling.</span>
+
+<span class="sd">    Arguments</span>
+<span class="sd">    ---------</span>
+<span class="sd">    X : np.ndarray, shape = [N,Ndim]</span>
+<span class="sd">        Chosen representation of the input data .</span>
+
+<span class="sd">    y : np.ndarray, type = int</span>
+<span class="sd">        Integer categorical labels.</span>
+
+<span class="sd">    method : str, default = &quot;vanilla&quot;</span>
+<span class="sd">        Type of sampling bias to apply for Poisson process. Allowed values are :</span>
+<span class="sd">        &quot;vanilla&quot;, &quot;easy&quot;, &quot;dense&quot;, &quot;anneal&quot;.</span>
+
+<span class="sd">        +-----------+--------------------------------------------------------+</span>
+<span class="sd">        | method    |                                                        |</span>
+<span class="sd">        +===========+========================================================+</span>
+<span class="sd">        | vanilla   | Ordinary PDS, where successive samples cannot be drawn |</span>
+<span class="sd">        |           | from a Eucliden norm of np.std(X)*r0 from existing     |</span>
+<span class="sd">        |           | points in a given sample                               |</span>
+<span class="sd">        +-----------+--------------------------------------------------------+</span>
+<span class="sd">        | easy      | Unlike vanilla PDS, here the repulsive radius is set   |</span>
+<span class="sd">        |           | to 0 for points with a mingling index greater then 0 - |</span>
+<span class="sd">        |           | only points surrounded exclusively by like-labelled    |</span>
+<span class="sd">        |           | (easy to classify) points are repulsive. This biases   |</span>
+<span class="sd">        |           | &quot;easy&quot; PDS to sample more difficult-to-classify points.|</span>
+<span class="sd">        +-----------+--------------------------------------------------------+</span>
+<span class="sd">        | dense     | For a mingling index group size of K, there are K      |</span>
+<span class="sd">        |           | possible mingling index values for each point. When    |</span>
+<span class="sd">        |           | proposing a new point, an arbitrary bias can be placed |</span>
+<span class="sd">        |           | on the mingingling index of points by assigned         |</span>
+<span class="sd">        |           | K coefficients to a categorical distribution that      |</span>
+<span class="sd">        |           | determines the probabiliy that a point with a given    | </span>
+<span class="sd">        |           | mingling index is chosen at any time.                  |</span>
+<span class="sd">        +-----------+--------------------------------------------------------+</span>
+<span class="sd">        | anneal    | Sampling is biased by mingling index values as for     |</span>
+<span class="sd">        |           | &quot;dense&quot; PDS, except for &quot;anneal&quot; PDS an iteration-     |</span>
+<span class="sd">        |           | depedent categorical distribution can be specified. By |</span>
+<span class="sd">        |           | default, the specified distribution initially biases   |</span>
+<span class="sd">        |           | towards &quot;easy&quot; to classify points, and then moves      |</span>
+<span class="sd">        |           | concentrates on &quot;difficult&quot; to classify points later.  |</span>
+<span class="sd">        +-----------+--------------------------------------------------------+</span>
+
+
+<span class="sd">    K : int, default = 4</span>
+<span class="sd">        The mingling index group size. Mingling indices </span>
+
+<span class="sd">        .. math::</span>
+<span class="sd">            :nowrap:       </span>
+<span class="sd"> </span>
+<span class="sd">            \[</span>
+<span class="sd">            m_K(\\mathbf{x}_i) = \\frac{1}{K}\\sum_{j=1}^K \\delta^{-}(y_i,y_j)</span>
+<span class="sd">            \]</span>
+
+<span class="sd">        , where</span>
+
+<span class="sd">        .. math::</span>
+
+<span class="sd">            \\delta^{-}(y_i,y_j) &amp;= 1, y_i \\neq y_j </span>
+<span class="sd">            </span>
+<span class="sd">                                    &amp;= 0, \\mathrm{otherwise}.</span>
+
+<span class="sd">        and the indices :math:`j` iterate over the :math:`K` nearest neighbours</span>
+<span class="sd">        to :math:`\mathbf{x}_i`, as determined by the Euclidean norm.</span>
+
+
+<span class="sd">    r0 : float, default = 0.2</span>
+<span class="sd">        A coefficient determining the size of the repulsive sphere surrounding</span>
+<span class="sd">        points. The Eucliden norm np.std(X)*r0 is specified as the defailt </span>
+<span class="sd">        distance for repulsion to have effect. See self.method for a more</span>
+<span class="sd">        detailed description.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    ::</span>
+<span class="sd">        </span>
+<span class="sd">        from sampling.pds import PoissonDiskSampling</span>
+<span class="sd">        import numpy as np</span>
+
+<span class="sd">        # random samples in a 2-d space</span>
+<span class="sd">        X = np.random.multivariate_normal([0,0],np.eye(2),size=50)</span>
+
+<span class="sd">        # partition uper-right quadrant from rest of data</span>
+<span class="sd">        y = [1 if all(_x&gt;0) else 0 for _x in X]</span>
+
+<span class="sd">        # instance of samper</span>
+<span class="sd">        sampler = PoissonDiskSampling(X,y)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">X</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;vanilla&quot;</span><span class="p">,</span><span class="n">K</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span><span class="n">r0</span><span class="o">=</span><span class="mf">0.2</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_X</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_y</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>       
+ 
+        <span class="c1"># mingling index group size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">K</span> <span class="o">=</span> <span class="n">K</span>
+ 
+        <span class="c1"># threshold exclusion distance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">X</span><span class="p">)</span><span class="o">*</span><span class="n">r0</span>
+        
+        <span class="c1"># biasing scheme for drawing samples</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_method</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
+        
+        <span class="c1"># default categorical distribution coefficients</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_mingling_sampling_distribution</span><span class="p">()</span>
+        
+        <span class="c1"># pre-compute mingling indices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_mingling_indices</span><span class="p">()</span>
+        
+        <span class="c1"># for dart throwing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_distance_metrics</span><span class="p">()</span>
+        
+        <span class="c1"># important to keep track of samples drawn for annealing method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">iter</span> <span class="o">=</span> <span class="mi">0</span>
+        
+
+<div class="viewcode-block" id="PoissonDiskSampling.set_annealing_schedule"><a class="viewcode-back" href="../../index.html#sampling.pds.PoissonDiskSampling.set_annealing_schedule">[docs]</a>    <span class="k">def</span> <span class="nf">set_annealing_schedule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pis</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the coefficients of the categorical distribution for sampling</span>
+<span class="sd">        mingling values at each iteration of the sampler being called. If </span>
+<span class="sd">        more samples are drawn then iterations given here, the categorical</span>
+<span class="sd">        distribution will be kept constant at the last values given here. </span>
+<span class="sd">        Annealing schedules for the categorical distribution can only be set </span>
+<span class="sd">        for when self.method==&quot;anneal&quot;.</span>
+
+<span class="sd">        Arguments</span>
+<span class="sd">        ---------</span>
+<span class="sd">        pis : np.ndarray, shape = [Niter][self.K]</span>
+<span class="sd">            A 2-d array of categorical disitribution coefficients for mingling</span>
+<span class="sd">            indices, given for each iteration of samples drawn from this class.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+<span class="sd">    </span>
+<span class="sd">            from sampling.pds import PoissonDiskSampling</span>
+<span class="sd">            import numpy as np</span>
+
+<span class="sd">            # uniformly sample from a 2-d space</span>
+<span class="sd">            X = np.random.uniform(low=-2,high=2,size=(50,2))</span>
+
+<span class="sd">            # parition by whether sin(X[:,0])&gt;X[:,1]</span>
+<span class="sd">            y = [1 if _x[1]&gt;np.sin(_x[0]*np.pi*2) else 0 for _x in X]</span>
+
+<span class="sd">            # number of mingling indices</span>
+<span class="sd">            K = 5</span>
+
+<span class="sd">            # specify anneal pds</span>
+<span class="sd">            sampler = PoissonDiskSampling(X,y,method=&quot;anneal&quot;,K=K)</span>
+<span class="sd">            </span>
+<span class="sd">            # coefficients are normalized per iteration so no need to do this here</span>
+<span class="sd">            coeffs = [[(K-kk)*np.exp(-iter*(K-kk)/1000) for kk in range(K)] for iter in range(2000)]</span>
+
+<span class="sd">            # set schedule for sampling mingling indices</span>
+<span class="sd">            sampler.set_annealing_schedule(coeffs)</span>
+<span class="sd">    </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pis</span><span class="p">,(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span><span class="nb">list</span><span class="p">)):</span> <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">set_annealing_schedule</span><span class="o">.</span><span class="vm">__doc__</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">pis</span><span class="p">))</span><span class="o">==</span><span class="mi">2</span><span class="p">:</span> <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">set_annealing_schedule</span><span class="o">.</span><span class="vm">__doc__</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">pis</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">==</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="p">:</span> <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">set_annealing_schedule</span><span class="o">.</span><span class="vm">__doc__</span><span class="p">)</span>
+        <span class="c1">#elif self.method!=&quot;anneal&quot;: raise Exception(self.set_annealing_schedule.__doc__) </span>
+
+        <span class="c1"># [Niter][self.K] array of categorical distribution coefficients</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pis</span> <span class="o">=</span> <span class="n">pis</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pis</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pis</span><span class="p">)</span>
+
+        <span class="c1"># ensure coefficients sum to 1 at each iteration</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pis</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pis</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),(</span><span class="bp">self</span><span class="o">.</span><span class="n">pis</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">T</span></div>
+    
+<div class="viewcode-block" id="PoissonDiskSampling.sample"><a class="viewcode-back" href="../../index.html#sampling.pds.PoissonDiskSampling.sample">[docs]</a>    <span class="k">def</span> <span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">N</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sample a subset of points of size N.</span>
+
+<span class="sd">        Arguments</span>
+<span class="sd">        ---------</span>
+<span class="sd">        N : int</span>
+<span class="sd">            The size of the subset. This must be less then the size of the </span>
+<span class="sd">            complete data set passed to this class when instantiated.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        np.ndarray </span>
+<span class="sd">            The subset of points sampled for this point process.</span>
+
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        ::</span>
+<span class="sd">    </span>
+<span class="sd">            from sampling.pds import PoissonDiskSampling</span>
+<span class="sd">            import numpy as np</span>
+<span class="sd">            import matplotlib.pyplot as plt</span>
+
+<span class="sd">            # sample from bimodal 1-d distribution</span>
+<span class="sd">            X = np.reshape(np.hstack((np.random.normal(-1,1,50),np.random.normal(1,1,50))),(-1,1))</span>
+
+<span class="sd">            # partition about x=0</span>
+<span class="sd">            y = [1 if _x&gt;0 else 0 for _x in X]</span>
+
+<span class="sd">            sampler = PoissonDiskSampling(X,y,method=&quot;dense&quot;)</span>
+
+<span class="sd">            # draw samples disproportionately close to the boundary</span>
+<span class="sd">            samples = np.asarray([sampler.sample(5)[0] for ss in range(5)])</span>
+
+<span class="sd">            # compare distributions</span>
+<span class="sd">            _ = [plt.hist(_z,label=[&quot;data&quot;,&quot;samples&quot;][ii],normed=True) for ii,_z in enumerate([X,samples.flatten()])]</span>
+
+<span class="sd">            plt.legend()</span>
+<span class="sd">            plt.show()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">N</span><span class="o">&gt;</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span> <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Cannot sample more points than are present in the data&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># list indices of selected points</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">selected_points</span> <span class="o">=</span> <span class="p">[]</span>
+        
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;dense&quot;</span><span class="p">,</span><span class="s2">&quot;anneal&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_categorical_sampling_distribution</span><span class="p">()</span>
+        
+        <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">selected_points</span><span class="p">)</span><span class="o">&lt;</span><span class="n">N</span><span class="p">:</span>
+            <span class="c1"># get index of proposed sample</span>
+            <span class="n">proposed_point</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_sample</span><span class="p">()</span>
+        
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_accept_sample</span><span class="p">(</span><span class="n">proposed_point</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">selected_points</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">proposed_point</span><span class="p">)</span>
+
+        <span class="c1"># for slicing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">selected_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">selected_points</span><span class="p">)</span>
+
+        <span class="c1"># important for annealing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">iter</span> <span class="o">+=</span> <span class="mi">1</span>    
+ 
+        <span class="c1"># return x-coordinate and categorical labels</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">selected_points</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">selected_points</span><span class="p">]</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_set_method</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">method</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set type of bias applied when drawing samples</span>
+
+<span class="sd">        Arguments</span>
+<span class="sd">        ---------</span>
+<span class="sd">        method : str, allowed values = [&quot;vanilla&quot;,&quot;easy&quot;,&quot;dense&quot;,&quot;anneal&quot;]</span>
+<span class="sd">            The type of biasing method to use when drawing Poisson disk samples.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">method</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;vanilla&quot;</span><span class="p">,</span><span class="s2">&quot;easy&quot;</span><span class="p">,</span><span class="s2">&quot;dense&quot;</span><span class="p">,</span><span class="s2">&quot;anneal&quot;</span><span class="p">]:</span> 
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unrecognised sampling method </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">method</span><span class="p">))</span>
+            
+        <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="n">method</span>
+        
+    <span class="k">def</span> <span class="nf">_calculate_distance_metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        calculate distance between points as euclidean norm</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">distance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">square</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">_x</span><span class="p">,(</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="mi">1</span><span class="p">))),</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span> \
+                <span class="k">for</span> <span class="n">_x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">])</span>
+       
+                
+    <span class="k">def</span> <span class="nf">_calculate_mingling_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        m(x_i) = 1/K sum_k delta(y_i,y_k) for K nearest neighbours to i</span>
+<span class="sd">        </span>
+<span class="sd">        Use Euclidean norm as metric for distance in X.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># compute kernel matrix for similarity measure between points</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_kernel_matrix</span><span class="p">()</span>
+        
+        <span class="c1"># indices of nearest neighbours</span>
+        <span class="n">neighbours</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Cov</span><span class="p">[</span><span class="n">ii</span><span class="p">])[::</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>
+        
+        <span class="c1"># anti-kronecker delta</span>
+        <span class="n">delta</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">y1</span><span class="p">,</span><span class="n">y2</span> <span class="p">:</span> <span class="mf">1.0</span> <span class="k">if</span> <span class="n">y1</span><span class="o">!=</span><span class="n">y2</span> <span class="k">else</span> <span class="mf">0.0</span> 
+        
+        <span class="c1"># mingingling indices - K discrete values</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">m_index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">([</span><span class="n">delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="n">ii</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="n">_id</span><span class="p">])</span> \
+                <span class="k">for</span> <span class="n">_id</span> <span class="ow">in</span> <span class="n">neighbours</span><span class="p">[</span><span class="n">ii</span><span class="p">]])</span> <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])])</span>
+        
+        <span class="c1"># store indices of points by mingling index</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_mingling_indices</span> <span class="o">=</span> <span class="p">{</span><span class="n">_k</span><span class="p">:</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">m_index</span><span class="o">==</span><span class="n">_k</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">_k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="p">)}</span>
+        
+        
+    <span class="k">def</span> <span class="nf">_calculate_kernel_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute the kernel matrix over the input space</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># use euclidean norm as distance metric</span>
+        <span class="n">kernel</span> <span class="o">=</span> <span class="n">RBF</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        
+        <span class="c1"># covariance matrix</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Cov</span> <span class="o">=</span> <span class="n">kernel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="p">)</span>
+        
+    <span class="k">def</span> <span class="nf">_update_categorical_sampling_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        If self.iter &gt;= number if iterations provided in sampling schedule then</span>
+<span class="sd">        use the last value present.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pis</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pis</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">pis</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pis</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">iter</span><span class="p">]</span>
+
+
+    <span class="k">def</span> <span class="nf">_accept_sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">proposed_idx</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        check whether proposed point lies within exclusion disk of any other</span>
+<span class="sd">        points.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">selected_points</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># ordinary dart throwing</span>
+            <span class="n">OK_for_vanilla</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">_x</span> <span class="p">:</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">distance</span><span class="p">[</span><span class="n">_x</span><span class="p">][</span><span class="n">_id</span><span class="p">]</span><span class="o">&lt;</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span> <span class="k">for</span> <span class="n">_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">selected_points</span><span class="p">])</span>
+        
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;vanilla&quot;</span><span class="p">,</span><span class="s2">&quot;dense&quot;</span><span class="p">,</span><span class="s2">&quot;anneal&quot;</span><span class="p">]:</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">OK_for_vanilla</span><span class="p">(</span><span class="n">proposed_idx</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;easy&quot;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">m_index</span><span class="p">[</span><span class="n">proposed_idx</span><span class="p">]</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+                    <span class="c1"># always accept if close-ish to boundary</span>
+                    <span class="n">res</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># only points surrounded by like-categorized points repulse</span>
+                    <span class="n">res</span> <span class="o">=</span> <span class="n">OK_for_vanilla</span><span class="p">(</span><span class="n">proposed_idx</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">res</span>
+
+    <span class="k">def</span> <span class="nf">_draw_sample</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        return index of proposed sample - this can be a uniformly random or </span>
+<span class="sd">        biased choice</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;vanilla&quot;</span><span class="p">,</span><span class="s2">&quot;easy&quot;</span><span class="p">]:</span>
+            <span class="c1"># uniform sampling between accept/reject criteria</span>
+            
+            <span class="n">res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;dense&quot;</span><span class="p">,</span><span class="s2">&quot;anneal&quot;</span><span class="p">]:</span>
+            <span class="c1"># bias sampling by mingling value using coefficients of a sampling categorical distribution</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_mingling_indices</span><span class="p">[</span>\
+                        <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">multinomial</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">pi</span><span class="p">))[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]],</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="c1"># not enough data left to draw from specific mingling indices</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+        
+        <span class="k">return</span> <span class="n">res</span>
+
+    <span class="k">def</span> <span class="nf">_init_mingling_sampling_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialise default categorical distribution coefficients for mingling</span>
+<span class="sd">        indices. For self.method == &quot;anneal&quot;, this is a distribution that </span>
+<span class="sd">        exponentially decays the zero mingling index at the highest rate, </span>
+<span class="sd">        second lowest index at the next highest rate etc.</span>
+<span class="sd">        &quot;&quot;&quot;</span>       
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;anneal&quot;</span><span class="p">:</span>
+            <span class="n">coeffs</span> <span class="o">=</span> <span class="p">[[(</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="o">-</span><span class="n">kk</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="nb">iter</span><span class="o">*</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="o">-</span><span class="n">kk</span><span class="p">)</span><span class="o">/</span><span class="mi">1000</span><span class="p">)</span> <span class="k">for</span> \
+                    <span class="n">kk</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="p">)]</span> <span class="k">for</span> <span class="nb">iter</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2000</span><span class="p">)]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">coeffs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="p">)</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">K</span><span class="p">,(</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_annealing_schedule</span><span class="p">(</span><span class="n">pis</span><span class="o">=</span><span class="n">coeffs</span><span class="p">)</span></div>
+
+ 
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">Mini-batch diversification</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, A. Fowler.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

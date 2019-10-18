@@ -1,0 +1,318 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Mini-batch diversificaiton for categorical labelled data &#8212; Mini-batch diversification  documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-sampling.sampler">
+<span id="mini-batch-diversificaiton-for-categorical-labelled-data"></span><h1>Mini-batch diversificaiton for categorical labelled data<a class="headerlink" href="#module-sampling.sampler" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="sampler-py">
+<h2>sampler.py<a class="headerlink" href="#sampler-py" title="Permalink to this headline">¶</a></h2>
+<p>Routines to perform sample-diversification for mini-batch stochastic gradient
+descent/ascent.</p>
+<dl class="class">
+<dt id="sampling.sampler.sampler">
+<em class="property">class </em><code class="descclassname">sampling.sampler.</code><code class="descname">sampler</code><a class="reference internal" href="_modules/sampling/sampler.html#sampler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sampling.sampler.sampler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Base class for mini-batch sampler of categorical data.</p>
+<dl class="method">
+<dt id="sampling.sampler.sampler.set_X">
+<code class="descname">set_X</code><span class="sig-paren">(</span><em>X</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sampling/sampler.html#sampler.set_X"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sampling.sampler.sampler.set_X" title="Permalink to this definition">¶</a></dt>
+<dd><p>The input descriptor X can be a 1-d or 1-d array-like structure. If the
+array is 1-d, the array is reshaped to (-1,1).</p>
+<dl class="docutils">
+<dt>X <span class="classifier-delimiter">:</span> <span class="classifier">(list,np.ndarray)</span></dt>
+<dd>An array-like object of the complete data descriptors.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sampling.sampler.sampler.set_y">
+<code class="descname">set_y</code><span class="sig-paren">(</span><em>y</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sampling/sampler.html#sampler.set_y"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sampling.sampler.sampler.set_y" title="Permalink to this definition">¶</a></dt>
+<dd><p>The categorical labels for the complete data set. Elements of y must
+be integer.</p>
+<dl class="docutils">
+<dt>y <span class="classifier-delimiter">:</span> <span class="classifier">(list,np.ndarray)</span></dt>
+<dd>Integer categorical labels.</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<span class="target" id="module-sampling.pds"></span><div class="section" id="pds-py">
+<h2>pds.py<a class="headerlink" href="#pds-py" title="Permalink to this headline">¶</a></h2>
+<p>Routines to perform sample-diversification for mini-batch stochastic gradient
+descent/ascent.</p>
+<dl class="class">
+<dt id="sampling.pds.PoissonDiskSampling">
+<em class="property">class </em><code class="descclassname">sampling.pds.</code><code class="descname">PoissonDiskSampling</code><span class="sig-paren">(</span><em>X</em>, <em>y</em>, <em>method='vanilla'</em>, <em>K=4</em>, <em>r0=0.2</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sampling/pds.html#PoissonDiskSampling"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sampling.pds.PoissonDiskSampling" title="Permalink to this definition">¶</a></dt>
+<dd><p>Poisson disk sampling (PDS) is a data diversifcation method for stochastic 
+gradient descent for labelled categorical data.</p>
+<p>Point processes are actively sampled by using the categorical label to bias
+sampling.</p>
+<dl class="docutils">
+<dt>X <span class="classifier-delimiter">:</span> <span class="classifier">np.ndarray, shape = [N,Ndim]</span></dt>
+<dd>Chosen representation of the input data .</dd>
+<dt>y <span class="classifier-delimiter">:</span> <span class="classifier">np.ndarray, type = int</span></dt>
+<dd>Integer categorical labels.</dd>
+<dt>method <span class="classifier-delimiter">:</span> <span class="classifier">str, default = “vanilla”</span></dt>
+<dd><p class="first">Type of sampling bias to apply for Poisson process. Allowed values are :
+“vanilla”, “easy”, “dense”, “anneal”.</p>
+<table border="1" class="last docutils">
+<colgroup>
+<col width="16%" />
+<col width="84%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">method</th>
+<th class="head">&#160;</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>vanilla</td>
+<td>Ordinary PDS, where successive samples cannot be drawn
+from a Eucliden norm of np.std(X)*r0 from existing
+points in a given sample</td>
+</tr>
+<tr class="row-odd"><td>easy</td>
+<td>Unlike vanilla PDS, here the repulsive radius is set
+to 0 for points with a mingling index greater then 0 -
+only points surrounded exclusively by like-labelled
+(easy to classify) points are repulsive. This biases
+“easy” PDS to sample more difficult-to-classify points.</td>
+</tr>
+<tr class="row-even"><td>dense</td>
+<td>For a mingling index group size of K, there are K
+possible mingling index values for each point. When
+proposing a new point, an arbitrary bias can be placed
+on the mingingling index of points by assigned
+K coefficients to a categorical distribution that
+determines the probabiliy that a point with a given
+mingling index is chosen at any time.</td>
+</tr>
+<tr class="row-odd"><td>anneal</td>
+<td>Sampling is biased by mingling index values as for
+“dense” PDS, except for “anneal” PDS an iteration-
+depedent categorical distribution can be specified. By
+default, the specified distribution initially biases
+towards “easy” to classify points, and then moves
+concentrates on “difficult” to classify points later.</td>
+</tr>
+</tbody>
+</table>
+</dd>
+<dt>K <span class="classifier-delimiter">:</span> <span class="classifier">int, default = 4</span></dt>
+<dd><p class="first">The mingling index group size. Mingling indices</p>
+<div class="math notranslate nohighlight">
+\[
+m_K(\mathbf{x}_i) = \frac{1}{K}\sum_{j=1}^K \delta^{-}(y_i,y_j)
+\]</div><p>, where</p>
+<div class="math notranslate nohighlight">
+\[ \begin{align}\begin{aligned}\delta^{-}(y_i,y_j) &amp;= 1, y_i \neq y_j \\                        &amp;= 0, \mathrm{otherwise}.\end{aligned}\end{align} \]</div>
+<p class="last">and the indices <span class="math notranslate nohighlight">\(j\)</span> iterate over the <span class="math notranslate nohighlight">\(K\)</span> nearest neighbours
+to <span class="math notranslate nohighlight">\(\mathbf{x}_i\)</span>, as determined by the Euclidean norm.</p>
+</dd>
+<dt>r0 <span class="classifier-delimiter">:</span> <span class="classifier">float, default = 0.2</span></dt>
+<dd>A coefficient determining the size of the repulsive sphere surrounding
+points. The Eucliden norm np.std(X)*r0 is specified as the defailt 
+distance for repulsion to have effect. See self.method for a more
+detailed description.</dd>
+</dl>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sampling.pds</span> <span class="k">import</span> <span class="n">PoissonDiskSampling</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="c1"># random samples in a 2-d space</span>
+<span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">multivariate_normal</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span><span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span><span class="n">size</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+
+<span class="c1"># partition uper-right quadrant from rest of data</span>
+<span class="n">y</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span> <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">_x</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">)</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">_x</span> <span class="ow">in</span> <span class="n">X</span><span class="p">]</span>
+
+<span class="c1"># instance of samper</span>
+<span class="n">sampler</span> <span class="o">=</span> <span class="n">PoissonDiskSampling</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="n">y</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="sampling.pds.PoissonDiskSampling.sample">
+<code class="descname">sample</code><span class="sig-paren">(</span><em>N</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sampling/pds.html#PoissonDiskSampling.sample"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sampling.pds.PoissonDiskSampling.sample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sample a subset of points of size N.</p>
+<dl class="docutils">
+<dt>N <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd>The size of the subset. This must be less then the size of the 
+complete data set passed to this class when instantiated.</dd>
+</dl>
+<dl class="docutils">
+<dt>np.ndarray </dt>
+<dd>The subset of points sampled for this point process.</dd>
+</dl>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sampling.pds</span> <span class="k">import</span> <span class="n">PoissonDiskSampling</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="c1"># sample from bimodal 1-d distribution</span>
+<span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">50</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">50</span><span class="p">))),(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">))</span>
+
+<span class="c1"># partition about x=0</span>
+<span class="n">y</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span> <span class="k">if</span> <span class="n">_x</span><span class="o">&gt;</span><span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">_x</span> <span class="ow">in</span> <span class="n">X</span><span class="p">]</span>
+
+<span class="n">sampler</span> <span class="o">=</span> <span class="n">PoissonDiskSampling</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;dense&quot;</span><span class="p">)</span>
+
+<span class="c1"># draw samples disproportionately close to the boundary</span>
+<span class="n">samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">sampler</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">5</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">ss</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">)])</span>
+
+<span class="c1"># compare distributions</span>
+<span class="n">_</span> <span class="o">=</span> <span class="p">[</span><span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">_z</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">,</span><span class="s2">&quot;samples&quot;</span><span class="p">][</span><span class="n">ii</span><span class="p">],</span><span class="n">normed</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">ii</span><span class="p">,</span><span class="n">_z</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">([</span><span class="n">X</span><span class="p">,</span><span class="n">samples</span><span class="o">.</span><span class="n">flatten</span><span class="p">()])]</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="method">
+<dt id="sampling.pds.PoissonDiskSampling.set_annealing_schedule">
+<code class="descname">set_annealing_schedule</code><span class="sig-paren">(</span><em>pis</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sampling/pds.html#PoissonDiskSampling.set_annealing_schedule"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sampling.pds.PoissonDiskSampling.set_annealing_schedule" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the coefficients of the categorical distribution for sampling
+mingling values at each iteration of the sampler being called. If 
+more samples are drawn then iterations given here, the categorical
+distribution will be kept constant at the last values given here. 
+Annealing schedules for the categorical distribution can only be set 
+for when self.method==”anneal”.</p>
+<dl class="docutils">
+<dt>pis <span class="classifier-delimiter">:</span> <span class="classifier">np.ndarray, shape = [Niter][self.K]</span></dt>
+<dd>A 2-d array of categorical disitribution coefficients for mingling
+indices, given for each iteration of samples drawn from this class.</dd>
+</dl>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">sampling.pds</span> <span class="k">import</span> <span class="n">PoissonDiskSampling</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="c1"># uniformly sample from a 2-d space</span>
+<span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="n">low</span><span class="o">=-</span><span class="mi">2</span><span class="p">,</span><span class="n">high</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span>
+
+<span class="c1"># parition by whether sin(X[:,0])&gt;X[:,1]</span>
+<span class="n">y</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span> <span class="k">if</span> <span class="n">_x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">&gt;</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">_x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="mi">2</span><span class="p">)</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">_x</span> <span class="ow">in</span> <span class="n">X</span><span class="p">]</span>
+
+<span class="c1"># number of mingling indices</span>
+<span class="n">K</span> <span class="o">=</span> <span class="mi">5</span>
+
+<span class="c1"># specify anneal pds</span>
+<span class="n">sampler</span> <span class="o">=</span> <span class="n">PoissonDiskSampling</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;anneal&quot;</span><span class="p">,</span><span class="n">K</span><span class="o">=</span><span class="n">K</span><span class="p">)</span>
+
+<span class="c1"># coefficients are normalized per iteration so no need to do this here</span>
+<span class="n">coeffs</span> <span class="o">=</span> <span class="p">[[(</span><span class="n">K</span><span class="o">-</span><span class="n">kk</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="nb">iter</span><span class="o">*</span><span class="p">(</span><span class="n">K</span><span class="o">-</span><span class="n">kk</span><span class="p">)</span><span class="o">/</span><span class="mi">1000</span><span class="p">)</span> <span class="k">for</span> <span class="n">kk</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">K</span><span class="p">)]</span> <span class="k">for</span> <span class="nb">iter</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2000</span><span class="p">)]</span>
+
+<span class="c1"># set schedule for sampling mingling indices</span>
+<span class="n">sampler</span><span class="o">.</span><span class="n">set_annealing_schedule</span><span class="p">(</span><span class="n">coeffs</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="toctree-wrapper compound">
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></li>
+<li><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></li>
+<li><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></li>
+</ul>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="#">Mini-batch diversification</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, A. Fowler.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
