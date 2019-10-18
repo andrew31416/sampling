@@ -312,7 +312,7 @@ class PoissonDiskSampling(sampler):
         If self.iter >= number if iterations provided in sampling schedule then
         use the last value present.
         """
-        if self.iter > self.pis.shape[0]:
+        if self.iter >= self.pis.shape[0]:
             self.pi = self.pis[self.pis.shape[0]-1]
         else:
             self.pi = self.pis[self.iter]
@@ -329,9 +329,9 @@ class PoissonDiskSampling(sampler):
             # ordinary dart throwing
             OK_for_vanilla = lambda _x : not any([self.distance[_x][_id]<self.r for _id in self.selected_points])
         
-            if self.method in ["vanilla"]:
+            if self.method in ["vanilla","dense","anneal"]:
                 res = OK_for_vanilla(proposed_idx)
-            elif self.method in ["easy","dense","anneal"]:
+            elif self.method in ["easy"]:
                 if self.m_index[proposed_idx]>0:
                     # always accept if close-ish to boundary
                     res = True
